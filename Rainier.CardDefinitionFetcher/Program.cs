@@ -38,6 +38,7 @@ internal class Program
     const string ARG_FETCH_ALL_QUESTS = "--fetch-allquests";
     const string ARG_FETCH_CURRENT_QUESTS = "--fetch-currentquests";
     const string ARG_FETCH_AIDECKS = "--fetch-aidecks";
+    const string ARG_FETCH_DECKVALIDATION = "--fetch-deckvalidation";
     const string ARG_OUTPUT_FOLDER = "--output-folder";
     const string ARG_HELP_LONG = "--help";
     const string ARG_HELP_SHORT = "-h";
@@ -159,6 +160,12 @@ internal class Program
         {
             anyArgWasSpecified = true;
             Fetchers.FetchQuestData(client);
+        }
+
+        if(args.Contains(ARG_FETCH_DECKVALIDATION))
+        {
+            anyArgWasSpecified = true;
+            Fetchers.FetchAndSaveDeckValidationRules(client);
         }
 
         if(!anyArgWasSpecified)

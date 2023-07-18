@@ -46,6 +46,7 @@ namespace Omukade.Tools.RainierCardDefinitionFetcher
         const string OUTPUT_FOLDER_CARD_DATABASE = @"PTCGL-CardDatabase";
         const string OUTPUT_FOLDER_CARD_ACTIONS = @"PTCGL-CardActions";
         const string OUTPUT_FOLDER_QUEST_DATA = @"PTCGL-QuestData";
+        const string OUTPUT_FOLDER_DECKVALIDATION_DATA = @"PTCGL-DeckValidation";
         const string OMUKADE_FAKE_BOARD_ID = "OMUKADE-FAKE-BOARD-ID";
         const string OMUKADE_FAKE_OPPONENT_ID = "OMUKADE-FAKE-OPPONENT-ID";
 
@@ -79,7 +80,7 @@ namespace Omukade.Tools.RainierCardDefinitionFetcher
                 {
                     Dictionary<string, Guid> getCompendiumData(ConfigDocumentGetResponse doc) => JsonConvert.DeserializeObject<Dictionary<string, Guid>>(doc.data["compendium"].contentString)!;
 
-                    var fetchTask = ctx.AddTask("Fetch card definitions");
+                    var fetchTask = ctx.AddTask("Fetch card definitions...");
                     fetchTask.MaxValue = cgmr.documents.Values.Select(doc => getCompendiumData(doc).Count).Sum();
 
                     foreach (var doc in cgmr.documents.Values)
@@ -94,7 +95,10 @@ namespace Omukade.Tools.RainierCardDefinitionFetcher
 
                         //Console.WriteLine($"Fetch cards in set {doc.id} ({cardIds.Count})");
 
-                        string setFolder = Path.Combine(Program.outputFolder, OUTPUT_FOLDER_CARD_DEFINITIONS, doc.id.Replace("-compendium_0.0", ""));
+                        string setName = doc.id.Replace("-compendium_0.0", "");
+                        fetchTask.Description = $"Fetch card definitions ({setName})";
+
+                        string setFolder = Path.Combine(Program.outputFolder, OUTPUT_FOLDER_CARD_DEFINITIONS, setName);
                         Directory.CreateDirectory(setFolder);
 
                         var cardIdData = new { cardIDs = (IEnumerable<string>) cardIds.Keys.Where(id => !invalidCardIds.Contains(id)).ToList() };
@@ -110,8 +114,10 @@ namespace Omukade.Tools.RainierCardDefinitionFetcher
                         {
                             // Rainier is being cranky; break everything into individual requests
                             queryResultCardData = new List<JObject>(cardIds.Count);
+                            int cardCountForSet = cardIds.Keys.Count(id => !invalidCardIds.Contains(id));
+                            int fetchedCardsForSet = 0;
 
-                            foreach(string currentCardID in cardIds.Keys.Where(id => !invalidCardIds.Contains(id)))
+                            foreach (string currentCardID in cardIds.Keys.Where(id => !invalidCardIds.Contains(id)))
                             {
                                 Thread.Sleep(500 /*ms*/);
                                 cardIdData = new { cardIDs = (IEnumerable<string>) new string[] { currentCardID } };
@@ -129,8 +135,9 @@ namespace Omukade.Tools.RainierCardDefinitionFetcher
                                 {
                                     queryResultCardData.Add(JsonConvert.DeserializeObject<List<JObject>>(queryResult.cardData)![0]);
                                 }
-
                                 fetchTask.Increment(1);
+                                fetchedCardsForSet += 1;
+                                fetchTask.Description = $"Fetch card definitions (PIECEMEAL {setName} - {fetchedCardsForSet}/{cardCountForSet})";
                             }
                         }
                         else if(queryResultCardData.Count == 0)
@@ -296,6 +303,19 @@ namespace Omukade.Tools.RainierCardDefinitionFetcher
             File.WriteAllText(Path.Combine(Program.outputFolder, OUTPUT_FOLDER_QUEST_DATA, "current-quest-data.json"), JsonConvert.SerializeObject(questData, jss));
 
             return questData;
+        }
+
+        public static void FetchAndSaveDeckValidationRules(Client client)
+        {
+            string[] dbNames = new string[] { "rules-expanded_0.0", "rules-standard_0.0", "rules-dev_0.0" };
+
+            Directory.CreateDirectory(Path.Combine(Program.outputFolder, OUTPUT_FOLDER_DECKVALIDATION_DATA));
+
+            foreach(string dbName in dbNames)
+            {
+                ConfigDocumentGetResponse dbRaw = client.GetConfigDocumentSync(dbName);
+                File.WriteAllText(Path.Combine(Program.outputFolder, OUTPUT_FOLDER_DECKVALIDATION_DATA, dbName + ".json"), dbRaw.data["rules"].contentString);
+            }
         }
 
         private static void WriteDatatableToFile(byte[] dbDocumentValue, Func<byte[], bool, DataTable> customFormatterImplementation, string filename)
