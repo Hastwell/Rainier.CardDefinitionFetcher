@@ -2,7 +2,7 @@
   "profiles": {
     "Rainier-CardDefinitionFetcher": {
       "commandName": "Project",
-      "commandLineArgs": "--fetch-carddefinitions --fetch-rules --fetch-allquests"
+      "commandLineArgs": "--fetch-carddefinitions --fetch-rules --fetch-allquests --fetch-featureflags"
     }
   }
 }

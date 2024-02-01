@@ -25,6 +25,7 @@ using Omukade.Tools.RainierCardDefinitionFetcher.Model;
 using Newtonsoft.Json;
 using Omukade.AutoPAR;
 using Omukade.AutoPAR.Rainier;
+using Platform.Sdk.Models.Config;
 
 internal class Program
 {
@@ -39,43 +40,59 @@ internal class Program
     const string ARG_FETCH_CURRENT_QUESTS = "--fetch-currentquests";
     const string ARG_FETCH_AIDECKS = "--fetch-aidecks";
     const string ARG_FETCH_DECKVALIDATION = "--fetch-deckvalidation";
+    const string ARG_INTERACTIVE_FETCHER = "--interactive";
     const string ARG_OUTPUT_FOLDER = "--output-folder";
     const string ARG_HELP_LONG = "--help";
     const string ARG_HELP_SHORT = "-h";
+    const string ARG_NO_UPDATE_CHECK = "--no-update-check";
+    const string ARG_QUIET = "--quiet";
+    const string ARG_FETCH_FRIENDS = "--fetch-friends";
+    const string ARG_FETCH_FEATUREFLAGS = "--fetch-featureflags";
 
 #pragma warning disable CS8618 // Non-nullable field must contain a non-null value when exiting constructor. Consider declaring as nullable.
     static internal string outputFolder;
+    static internal bool quietFlagEnabled;
 #pragma warning restore CS8618 // Non-nullable field must contain a non-null value when exiting constructor. Consider declaring as nullable.
 
     private static void Main(string[] args)
     {
+        quietFlagEnabled = args.Contains(ARG_QUIET);
+
         // Load secrets
         SecretsConfig secrets = LoadSecrets();
 
-        Console.WriteLine("Checking for Rainier updates...");
-        UpdaterManifest updaterManifest = RainierFetcher.GetUpdateManifestAsync().Result;
-        if(RainierFetcher.DoesNeedUpdate(updaterManifest))
+        if(!args.Contains(ARG_NO_UPDATE_CHECK))
         {
-            Console.WriteLine($"Update detected; downloading...");
-            RainierFetcher.DownloadUpdateFile(updaterManifest).Wait();
-            Console.WriteLine("Update downloaded; extracting...");
-            RainierFetcher.ExtractUpdateFile(deleteExistingUpdateFolder: true);
-            Console.WriteLine("Update complete and extracted.");
-        }
-        else
-        {
-            Console.WriteLine("Rainier client is up-to-date");
+            Console.WriteLine("Checking for Rainier updates...");
+            UpdaterManifest updaterManifest = RainierFetcher.GetUpdateManifestAsync().Result;
+            if (RainierFetcher.DoesNeedUpdate(updaterManifest))
+            {
+                WriteIfNotQuiet($"Update detected; downloading...");
+                RainierFetcher.DownloadUpdateFile(updaterManifest).Wait();
+                WriteIfNotQuiet("Update downloaded; extracting...");
+                RainierFetcher.ExtractUpdateFile(deleteExistingUpdateFolder: true);
+                WriteIfNotQuiet("Update complete and extracted.");
+            }
+            else
+            {
+                WriteIfNotQuiet("Rainier client is up-to-date");
+            }
         }
 
-        Console.WriteLine("Initializing AutoPAR...");
+        WriteIfNotQuiet("Initializing AutoPAR...");
         AssemblyLoadInterceptor.Initialize(RainierFetcher.UpdateDirectory);
 
         PostParMain(args, secrets);
     }
 
+    private static void WriteIfNotQuiet(string message)
+    {
+        if(!quietFlagEnabled) Console.WriteLine(message);
+    }
+
     private static void PostParMain(string[] args, SecretsConfig secrets)
     {
-        Console.WriteLine("Rainer Card Definition Fetcher");
+        WriteIfNotQuiet("Rainer Card Definition Fetcher");
 
         if(args.Length == 0 || args.Contains(ARG_HELP_SHORT) || args.Contains(ARG_HELP_LONG))
         {
@@ -86,9 +103,9 @@ internal class Program
         // Parse output folder if needed
         outputFolder = GetOutputFolder(args);
 
-        Console.WriteLine("Logging in...");
+        WriteIfNotQuiet("Logging in...");
         TokenData tokenData = AccessHelper.GetTokenForUsernameAndPassword(secrets.username, secrets.password);
-        Console.WriteLine("Logged in Successfully");
+        WriteIfNotQuiet("Logged in Successfully");
 
         // Access Key is hardcoded in Client.Setup
         const string ACCESS_KEY = "421d8904-0236-4ab4-94f5-a8a84aeb3f7b";
@@ -166,6 +183,68 @@ internal class Program
         {
             anyArgWasSpecified = true;
             Fetchers.FetchAndSaveDeckValidationRules(client);
+        }
+
+        if(args.Contains(ARG_FETCH_FRIENDS))
+        {
+            anyArgWasSpecified = true;
+            Fetchers.FetchFriends(client, tokenData.access_token);
+        }
+
+        if(args.Contains(ARG_FETCH_FEATUREFLAGS))
+        {
+            anyArgWasSpecified = true;
+            Fetchers.FetchFeatureFlags(client);
+        }
+
+        if(args.Contains(ARG_INTERACTIVE_FETCHER))
+        {
+            anyArgWasSpecified = true;
+            ClientExtensions.DIE_ON_ERROR = false;
+
+            while(true)
+            {
+                Console.Write("> ");
+                string? documentName = Console.ReadLine()?.TrimEnd();
+
+                if(documentName == null || documentName == "exit")
+                {
+                    break;
+                }
+
+                ConfigDocumentGetResponse documentResponse = client.GetConfigDocumentSync(documentName);
+                if(documentResponse == null)
+                {
+                    Console.WriteLine("Document is null; possibly not found?");
+                    continue;
+                }
+
+                if(documentResponse.data == null)
+                {
+                    Console.WriteLine("Document DATA is null; possibly not found?");
+                    continue;
+                }
+
+                foreach(string documentKey in documentResponse.data.Keys)
+                {
+                    ConfigDocumentResponseValue currentDocument = documentResponse.data[documentKey];
+                    Console.WriteLine($"Document Key - {documentKey} - {currentDocument.contentType}");
+
+                    if(currentDocument.contentString != null)
+                    {
+                        string jsonFilename = Path.Combine(Program.outputFolder, $"{documentName}___{documentKey}.json");
+                        Console.WriteLine(" --> " + jsonFilename);
+                        File.WriteAllText(jsonFilename, currentDocument.contentString);
+                    }
+
+                    if (currentDocument.contentBinary != null)
+                    {
+                        string binaryFilename = Path.Combine(Program.outputFolder, $"{documentName}___{documentKey}.bin");
+                        Console.WriteLine(" --> " + binaryFilename);
+                        File.WriteAllBytes(binaryFilename, currentDocument.contentBinary);
+                    }
+                }
+            }
         }
 
         if(!anyArgWasSpecified)
@@ -272,6 +351,7 @@ Fetch arguments (as many as desired can be specified):
 --fetch-cardactions     Fetches the localized list of card actions.
 --fetch-carddb          Fetches the list of cards for display in-game (not implementations, see --fetch-carddefinitions)
 --fetch-carddefinitions / --fetch-carddefs Fetches all card implementations.
+--fetch-featureflags    Fetches feature flags to control client features/behavior.
 --ignore-invalid-ids-file   By default, --fetch-carddefinitions will create a file of known-bad card IDs that can be skipped
                             for significantly faster performance on subsequent executions (minutes vs hours).
                             These entries may become stale as skipped cards become implemented; --fetch-carddefinitions should
@@ -281,8 +361,10 @@ Fetch arguments (as many as desired can be specified):
 
 --fetch-rules           Fetches the game rules.
 --fetch-aidecks         Fetches a selection of decks used by the AI.
+--fetch-friends         Fetches the current user's friend list.
+--interactive           Enters an interactive prompt allowing arbitrary documents to be downloaded, given their name.
 
-Omukade Cheyenne servers typically only need the results of --fetch-carddefinitions --fetch-rules
+Omukade Cheyenne servers typically only need the results of --fetch-carddefinitions --fetch-rules --fetch-featureflags
 
 Output arguments:
 --output-folder (/foo/bar)  DEPRECATED: Writes all fetched data to this folder. By default, the Common Omukade Datastore is used for output.
@@ -290,6 +372,8 @@ Output arguments:
 
 Other arguments:
 -h / --help             This help text. Will also appear automatically if run with no fetch arguments, or no arguments at all.
+--no-update-check       Skips checking for Rainier updates (eg, if started from another program that also did this check)
+--quiet                 Supresses all non-error messages.
 """
         );
     }

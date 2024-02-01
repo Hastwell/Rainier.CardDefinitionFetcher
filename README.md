@@ -20,7 +20,7 @@ data from the TCGL servers. eg:
 
 **The account used must have previously logged into TCGL** as this app cannot deal with any of the first-signin "authorize TCGL to access your account" stuff.
 
-This application uses AutoPAR to load the TCGL assemblies. Before using this application, you must do one of the following:
+This application uses AutoPAR to load the TCGL binaries. Although they are usually automatically fetched without issue, if issues do arise, one of the following can be used to supply the needed TCGL binaries:
 * Windows Only, Recommended: Install Pokemon TCG Live. It will be auto-detected by AutoPAR and used for this application.
 * Add the setting `autopar-search-folder` with the location of your TCGL install directory to secrets.json. Backslashes and quotes must be escaped (`\\` and `\"` respectively).
 * Copy the TCGL assemblies from your TCGL install directory (`C:\Install\Folder\Pokémon Trading Card Game Live\Pokemon TCG Live_Data\Managed`) to the folder `autopar` under the app's folder.

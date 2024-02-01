@@ -27,31 +27,31 @@
 
   <ItemGroup>
 	  <Reference Include="CardDatabase.DataAccess">
-		  <HintPath>..\..\Rainier-Assemblies\1.6.1.189999.20230620_1957_PAR\CardDatabase.DataAccess.dll</HintPath>
+		  <HintPath>..\..\Rainier-Assemblies\1.10.0.257251.20231212_2002_PAR\CardDatabase.DataAccess.dll</HintPath>
 		  <Private>False</Private>
 	  </Reference>
     <Reference Include="FlatBuffers.Core">
-      <HintPath>..\..\Rainier-Assemblies\1.6.1.189999.20230620_1957_PAR\FlatBuffers.Core.dll</HintPath>
+      <HintPath>..\..\Rainier-Assemblies\1.10.0.257251.20231212_2002_PAR\FlatBuffers.Core.dll</HintPath>
       <Private>False</Private>
     </Reference>
     <Reference Include="MatchLogic">
-      <HintPath>..\..\Rainier-Assemblies\1.6.1.189999.20230620_1957_PAR\MatchLogic.dll</HintPath>
+      <HintPath>..\..\Rainier-Assemblies\1.10.0.257251.20231212_2002_PAR\MatchLogic.dll</HintPath>
       <Private>False</Private>
     </Reference>
     <Reference Include="Platform.Sdk">
-      <HintPath>..\..\Rainier-Assemblies\1.6.1.189999.20230620_1957_PAR\Platform.Sdk.dll</HintPath>
+      <HintPath>..\..\Rainier-Assemblies\1.10.0.257251.20231212_2002_PAR\Platform.Sdk.dll</HintPath>
       <Private>False</Private>
     </Reference>
     <Reference Include="SharedLogicUtils">
-      <HintPath>..\..\Rainier-Assemblies\1.6.1.189999.20230620_1957_PAR\SharedLogicUtils.dll</HintPath>
+      <HintPath>..\..\Rainier-Assemblies\1.10.0.257251.20231212_2002_PAR\SharedLogicUtils.dll</HintPath>
       <Private>False</Private>
     </Reference>
     <Reference Include="TPCI.PTCS">
-      <HintPath>..\..\Rainier-Assemblies\1.6.1.189999.20230620_1957_PAR\TPCI.PTCS.dll</HintPath>
+      <HintPath>..\..\Rainier-Assemblies\1.10.0.257251.20231212_2002_PAR\TPCI.PTCS.dll</HintPath>
       <Private>False</Private>
     </Reference>
 	<Reference Include="UnityEngine.CoreModule">
-		<HintPath>..\..\Rainier-Assemblies\1.6.1.189999.20230620_1957_PAR\UnityEngine.CoreModule.dll</HintPath>
+		<HintPath>..\..\Rainier-Assemblies\1.10.0.257251.20231212_2002_PAR\UnityEngine.CoreModule.dll</HintPath>
 		<Private>False</Private>
 	</Reference>
   </ItemGroup>

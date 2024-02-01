@@ -24,6 +24,7 @@ using Newtonsoft.Json.Linq;
 using Omukade.Tools.RainierCardDefinitionFetcher.Model;
 using Platform.Sdk;
 using Platform.Sdk.Models.Config;
+using Platform.Sdk.Models.Friend;
 using Platform.Sdk.Models.Query;
 using SharedLogicUtils.Services.Query.Contexts;
 using SharedLogicUtils.Services.Query.Responses;
@@ -52,6 +53,22 @@ namespace Omukade.Tools.RainierCardDefinitionFetcher
 
         public static void FetchAndSaveCardDefinitions(Client client, bool leveragePreviousInvalidCardIds = false)
         {
+            if (Program.quietFlagEnabled)
+            {
+                CardDefinitionFetchCore(ctx: null, client, leveragePreviousInvalidCardIds);
+            }
+            else
+            {
+                AnsiConsole.Progress()
+                    .HideCompleted(false)
+                    .AutoClear(false)
+                    .Start(ctx => CardDefinitionFetchCore(ctx, client, leveragePreviousInvalidCardIds));
+            }
+
+        }
+
+        private static void CardDefinitionFetchCore(ProgressContext? ctx, Client client, bool leveragePreviousInvalidCardIds)
+        {
             ConfigDocumentGetResponse setNameManifestDocument = client.GetConfigDocumentSync("set-manifest_0.0");
             SetNamesManifest setNameManifest = JsonConvert.DeserializeObject<SetNamesManifest>(setNameManifestDocument.data["manifest"].contentString)!;
 
@@ -73,113 +90,107 @@ namespace Omukade.Tools.RainierCardDefinitionFetcher
                 invalidCardIds = new List<string>();
             }
 
-            AnsiConsole.Progress()
-                .HideCompleted(false)
-                .AutoClear(false)
-                .Start(ctx =>
+            Dictionary<string, Guid> getCompendiumData(ConfigDocumentGetResponse doc) => JsonConvert.DeserializeObject<Dictionary<string, Guid>>(doc.data["compendium"].contentString)!;
+
+            ProgressTask? fetchTask = ctx?.AddTask("Fetch card definitions...");
+            if (fetchTask != null) fetchTask.MaxValue = cgmr.documents.Values.Select(doc => getCompendiumData(doc).Count).Sum();
+
+            foreach (var doc in cgmr.documents.Values)
+            {
+                var cardIds = JsonConvert.DeserializeObject<Dictionary<string, Guid>>(doc.data["compendium"].contentString)!;
+
+                if (cardIds.Count == 0)
                 {
-                    Dictionary<string, Guid> getCompendiumData(ConfigDocumentGetResponse doc) => JsonConvert.DeserializeObject<Dictionary<string, Guid>>(doc.data["compendium"].contentString)!;
+                    //Console.WriteLine($"Skipping set {doc.id} - no cards defined in this set");
+                    continue;
+                }
 
-                    var fetchTask = ctx.AddTask("Fetch card definitions...");
-                    fetchTask.MaxValue = cgmr.documents.Values.Select(doc => getCompendiumData(doc).Count).Sum();
+                //Console.WriteLine($"Fetch cards in set {doc.id} ({cardIds.Count})");
 
-                    foreach (var doc in cgmr.documents.Values)
+                string setName = doc.id.Replace("-compendium_0.0", "");
+                if (fetchTask != null) fetchTask.Description = $"Fetch card definitions ({setName})";
+
+                string setFolder = Path.Combine(Program.outputFolder, OUTPUT_FOLDER_CARD_DEFINITIONS, setName);
+                Directory.CreateDirectory(setFolder);
+
+                var cardIdData = new { cardIDs = (IEnumerable<string>)cardIds.Keys.Where(id => !invalidCardIds.Contains(id)).ToList() };
+
+                var queryResultRaw = client.MakeSyncCall<string, object, QueryResponse>(client.QueryAsyncWithJsonContext, "card-get-carddata", cardIdData);
+                var queryResult = queryResultRaw.resultAsJson<CardDataResponse>();
+                List<JObject> queryResultCardData = JsonConvert.DeserializeObject<List<JObject>>(queryResult.cardData)!;
+
+                const int ERR_INVALID_CARDIDS_CODE = 34103;
+                const string ERR_INVALID_CARDIDS_MESSAGE = "Invalid cardIDs requested";
+                bool invalidCardIdsWereRequested() => queryResult.error == ERR_INVALID_CARDIDS_CODE && queryResult.message == ERR_INVALID_CARDIDS_MESSAGE;
+                if (invalidCardIdsWereRequested())
+                {
+                    // Rainier is being cranky; break everything into individual requests
+                    queryResultCardData = new List<JObject>(cardIds.Count);
+                    int cardCountForSet = cardIds.Keys.Count(id => !invalidCardIds.Contains(id));
+                    int fetchedCardsForSet = 0;
+
+                    foreach (string currentCardID in cardIds.Keys.Where(id => !invalidCardIds.Contains(id)))
                     {
-                        var cardIds = JsonConvert.DeserializeObject<Dictionary<string, Guid>>(doc.data["compendium"].contentString)!;
-
-                        if (cardIds.Count == 0)
-                        {
-                            //Console.WriteLine($"Skipping set {doc.id} - no cards defined in this set");
-                            continue;
-                        }
-
-                        //Console.WriteLine($"Fetch cards in set {doc.id} ({cardIds.Count})");
-
-                        string setName = doc.id.Replace("-compendium_0.0", "");
-                        fetchTask.Description = $"Fetch card definitions ({setName})";
-
-                        string setFolder = Path.Combine(Program.outputFolder, OUTPUT_FOLDER_CARD_DEFINITIONS, setName);
-                        Directory.CreateDirectory(setFolder);
-
-                        var cardIdData = new { cardIDs = (IEnumerable<string>) cardIds.Keys.Where(id => !invalidCardIds.Contains(id)).ToList() };
-
-                        var queryResultRaw = client.MakeSyncCall<string, object, QueryResponse>(client.QueryAsyncWithJsonContext, "card-get-carddata", cardIdData);
-                        var queryResult = queryResultRaw.resultAsJson<CardDataResponse>();
-                        List<JObject> queryResultCardData = JsonConvert.DeserializeObject<List<JObject>>(queryResult.cardData)!;
-
-                        const int ERR_INVALID_CARDIDS_CODE = 34103;
-                        const string ERR_INVALID_CARDIDS_MESSAGE = "Invalid cardIDs requested";
-                        bool invalidCardIdsWereRequested() => queryResult.error == ERR_INVALID_CARDIDS_CODE && queryResult.message == ERR_INVALID_CARDIDS_MESSAGE;
+                        Thread.Sleep(350 /*ms*/);
+                        cardIdData = new { cardIDs = (IEnumerable<string>)new string[] { currentCardID } };
+                        queryResultRaw = client.MakeSyncCall<string, object, QueryResponse>(client.QueryAsyncWithJsonContext, "card-get-carddata", cardIdData);
+                        queryResult = queryResultRaw.resultAsJson<CardDataResponse>();
                         if (invalidCardIdsWereRequested())
                         {
-                            // Rainier is being cranky; break everything into individual requests
-                            queryResultCardData = new List<JObject>(cardIds.Count);
-                            int cardCountForSet = cardIds.Keys.Count(id => !invalidCardIds.Contains(id));
-                            int fetchedCardsForSet = 0;
-
-                            foreach (string currentCardID in cardIds.Keys.Where(id => !invalidCardIds.Contains(id)))
-                            {
-                                Thread.Sleep(500 /*ms*/);
-                                cardIdData = new { cardIDs = (IEnumerable<string>) new string[] { currentCardID } };
-                                queryResultRaw = client.MakeSyncCall<string, object, QueryResponse>(client.QueryAsyncWithJsonContext, "card-get-carddata", cardIdData);
-                                queryResult = queryResultRaw.resultAsJson<CardDataResponse>();
-                                if(invalidCardIdsWereRequested())
-                                {
-                                    invalidCardIds.Add(currentCardID);
-                                }
-                                else if(queryResult.error != 0)
-                                {
-                                    throw new InvalidOperationException($"Service returned unknown non-zero error {queryResult.error} - {queryResult.message}");
-                                }
-                                else
-                                {
-                                    queryResultCardData.Add(JsonConvert.DeserializeObject<List<JObject>>(queryResult.cardData)![0]);
-                                }
-                                fetchTask.Increment(1);
-                                fetchedCardsForSet += 1;
-                                fetchTask.Description = $"Fetch card definitions (PIECEMEAL {setName} - {fetchedCardsForSet}/{cardCountForSet})";
-                            }
+                            invalidCardIds.Add(currentCardID);
                         }
-                        else if(queryResultCardData.Count == 0)
+                        else if (queryResult.error != 0)
                         {
-                            // WTF, an empty set??? Debug it!
+                            throw new InvalidOperationException($"Service returned unknown non-zero error {queryResult.error} - {queryResult.message}");
                         }
                         else
                         {
-                            // Everything is normal
-                            fetchTask.Increment(cardIds.Count);
+                            queryResultCardData.Add(JsonConvert.DeserializeObject<List<JObject>>(queryResult.cardData)![0]);
                         }
+                        fetchTask?.Increment(1);
+                        fetchedCardsForSet += 1;
+                        if (fetchTask != null) fetchTask.Description = $"Fetch card definitions (PIECEMEAL {setName} - {fetchedCardsForSet}/{cardCountForSet})";
+                    }
+                }
+                else if (queryResultCardData.Count == 0)
+                {
+                    // WTF, an empty set??? Debug it!
+                }
+                else
+                {
+                    // Everything is normal
+                    fetchTask?.Increment(cardIds.Count);
+                }
 
-                        foreach (JObject card in queryResultCardData)
+                foreach (JObject card in queryResultCardData)
+                {
+                    // Attempt to normalize the releaseDate to PT ISO dates, as they randomly warp between both UTC <--> PT and ISO <--> mm/dd/yy, and make it seem like there are more differences than there really are
+                    if (card.ContainsKey("releaseDate"))
+                    {
+                        string? releaseDateRawValue = card.Value<string>("releaseDate");
+                        if (releaseDateRawValue != null)
                         {
-                            // Attempt to normalize the releaseDate to PT ISO dates, as they randomly warp between both UTC <--> PT and ISO <--> mm/dd/yy, and make it seem like there are more differences than there really are
-                            if(card.ContainsKey("releaseDate"))
-                            {
-                                string? releaseDateRawValue = card.Value<string>("releaseDate");
-                                if(releaseDateRawValue != null)
-                                {
-                                    DateTime rawReleaseDate = DateTime.Parse(releaseDateRawValue);
+                            DateTime rawReleaseDate = DateTime.Parse(releaseDateRawValue);
 
-                                    // If Hour is 18 or 17, then the time is UTC. Offset is based on if PT is in DST at that time or not.
-                                    if (rawReleaseDate.Hour == 18) rawReleaseDate = rawReleaseDate.AddHours(-8);
-                                    else if (rawReleaseDate.Hour == 17) rawReleaseDate = rawReleaseDate.AddHours(-7);
+                            // If Hour is 18 or 17, then the time is UTC. Offset is based on if PT is in DST at that time or not.
+                            if (rawReleaseDate.Hour == 18) rawReleaseDate = rawReleaseDate.AddHours(-8);
+                            else if (rawReleaseDate.Hour == 17) rawReleaseDate = rawReleaseDate.AddHours(-7);
 
-                                    card["releaseDate"] = new JValue(rawReleaseDate.ToString("s"));
-                                }
-                            }
-
-                            string fname = card.Value<string>("cardSourceID") + ".json";
-                            string fullPath = Path.Combine(setFolder, fname);
-
-                            File.WriteAllText(fullPath, JsonConvert.SerializeObject(card));
-                        }
-
-                        if (invalidCardIds.Any())
-                        {
-                            File.WriteAllLines(INVALID_CARD_IDS_FILE, invalidCardIds);
+                            card["releaseDate"] = new JValue(rawReleaseDate.ToString("s"));
                         }
                     }
-                });
+
+                    string fname = card.Value<string>("cardSourceID") + ".json";
+                    string fullPath = Path.Combine(setFolder, fname);
+
+                    File.WriteAllText(fullPath, JsonConvert.SerializeObject(card));
+                }
+
+                if (invalidCardIds.Any())
+                {
+                    File.WriteAllLines(INVALID_CARD_IDS_FILE, invalidCardIds);
+                }
+            }
         }
 
         public static void FetchAndSaveAllGamemodeData(Client client)
@@ -316,6 +327,24 @@ namespace Omukade.Tools.RainierCardDefinitionFetcher
                 ConfigDocumentGetResponse dbRaw = client.GetConfigDocumentSync(dbName);
                 File.WriteAllText(Path.Combine(Program.outputFolder, OUTPUT_FOLDER_DECKVALIDATION_DATA, dbName + ".json"), dbRaw.data["rules"].contentString);
             }
+        }
+
+        public static void FetchFriends(Client client, string ptcsJwt)
+        {
+            List<string> profileKeys = new() { "season-rank" };
+            GetAllFriendsResponse friendData = client.MakeSyncCall<string, List<string>, GetAllFriendsResponse>(client.GetAllFriendsAsync, ptcsJwt, profileKeys);
+            foreach(FriendInfo friend in friendData.friendInfos)
+            {
+                Console.WriteLine(friend.ToString());
+            }
+        }
+
+        public static void FetchFeatureFlags(Client client)
+        {
+            const string FEATUREFLAG_DOCUMENT_NAME = "feature-flags_0.0";
+
+            ConfigDocumentGetResponse flagsRaw = client.GetConfigDocumentSync(FEATUREFLAG_DOCUMENT_NAME);
+            File.WriteAllText(Path.Combine(Program.outputFolder, OUTPUT_FOLDER_CARD_DEFINITIONS, "feature-flags.json"), flagsRaw.data["featureMap"].contentString);
         }
 
         private static void WriteDatatableToFile(byte[] dbDocumentValue, Func<byte[], bool, DataTable> customFormatterImplementation, string filename)

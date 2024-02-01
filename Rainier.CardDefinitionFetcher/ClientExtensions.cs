@@ -30,6 +30,8 @@ namespace Omukade.Tools.RainierCardDefinitionFetcher
 {
     internal static class ClientExtensions
     {
+        static internal bool DIE_ON_ERROR = true;
+
         static void GenericErrorHandler(Client sdk, HttpResponseMessage response, ErrorResponse error)
         {
             if (error.networkException != null) AnsiConsole.WriteException(error.networkException);
@@ -43,7 +45,10 @@ namespace Omukade.Tools.RainierCardDefinitionFetcher
                 AnsiConsole.WriteException(new Exception("Unknown service error"));
             }
 
-            Environment.Exit(1);
+            if(DIE_ON_ERROR)
+            {
+                Environment.Exit(1);
+            }
         }
 
         public static TResult MakeSyncCall<TResult>(this Client client, Func<ResponseHandler<TResult>, ErrorHandler, Task> queryCall)
