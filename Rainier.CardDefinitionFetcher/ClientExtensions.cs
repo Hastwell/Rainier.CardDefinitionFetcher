@@ -32,7 +32,7 @@ namespace Omukade.Tools.RainierCardDefinitionFetcher
     {
         static internal bool DIE_ON_ERROR = true;
 
-        static void GenericErrorHandler(Client sdk, HttpResponseMessage response, ErrorResponse error)
+        static void GenericErrorHandler(IClient sdk, HttpResponseMessage response, ErrorResponse error)
         {
             if (error.networkException != null) AnsiConsole.WriteException(error.networkException);
             else if (error.errors?.Any() == true)
