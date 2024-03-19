@@ -27,31 +27,31 @@
 
   <ItemGroup>
 	  <Reference Include="CardDatabase.DataAccess">
-		  <HintPath>..\..\Rainier-Assemblies\1.11.0.282837.20240210_0232_PAR\CardDatabase.DataAccess.dll</HintPath>
+		  <HintPath>..\..\Rainier-Assemblies\1.12.0.293233.20240306_2344_PAR\CardDatabase.DataAccess.dll</HintPath>
 		  <Private>False</Private>
 	  </Reference>
     <Reference Include="FlatBuffers.Core">
-      <HintPath>..\..\Rainier-Assemblies\1.11.0.282837.20240210_0232_PAR\FlatBuffers.Core.dll</HintPath>
+      <HintPath>..\..\Rainier-Assemblies\1.12.0.293233.20240306_2344_PAR\FlatBuffers.Core.dll</HintPath>
       <Private>False</Private>
     </Reference>
     <Reference Include="MatchLogic">
-      <HintPath>..\..\Rainier-Assemblies\1.11.0.282837.20240210_0232_PAR\MatchLogic.dll</HintPath>
+      <HintPath>..\..\Rainier-Assemblies\1.12.0.293233.20240306_2344_PAR\MatchLogic.dll</HintPath>
       <Private>False</Private>
     </Reference>
-    <Reference Include="Platform.Sdk">
-      <HintPath>..\..\Rainier-Assemblies\1.11.0.282837.20240210_0232_PAR\Platform.Sdk.dll</HintPath>
+    <Reference Include="ClientNetworking">
+      <HintPath>..\..\Rainier-Assemblies\1.12.0.293233.20240306_2344_PAR\ClientNetworking.dll</HintPath>
       <Private>False</Private>
     </Reference>
     <Reference Include="SharedLogicUtils">
-      <HintPath>..\..\Rainier-Assemblies\1.11.0.282837.20240210_0232_PAR\SharedLogicUtils.dll</HintPath>
+      <HintPath>..\..\Rainier-Assemblies\1.12.0.293233.20240306_2344_PAR\SharedLogicUtils.dll</HintPath>
       <Private>False</Private>
     </Reference>
     <Reference Include="TPCI.PTCS">
-      <HintPath>..\..\Rainier-Assemblies\1.11.0.282837.20240210_0232_PAR\TPCI.PTCS.dll</HintPath>
+      <HintPath>..\..\Rainier-Assemblies\1.12.0.293233.20240306_2344_PAR\TPCI.PTCS.dll</HintPath>
       <Private>False</Private>
     </Reference>
 	<Reference Include="UnityEngine.CoreModule">
-		<HintPath>..\..\Rainier-Assemblies\1.11.0.282837.20240210_0232_PAR\UnityEngine.CoreModule.dll</HintPath>
+		<HintPath>..\..\Rainier-Assemblies\1.12.0.293233.20240306_2344_PAR\UnityEngine.CoreModule.dll</HintPath>
 		<Private>False</Private>
 	</Reference>
   </ItemGroup>

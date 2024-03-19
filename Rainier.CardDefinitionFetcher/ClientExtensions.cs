@@ -16,9 +16,9 @@
 * along with this program.  If not, see <http://www.gnu.org/licenses/>.
 **************************************************************************/
 
-using Platform.Sdk;
-using Platform.Sdk.Models;
-using Platform.Sdk.Models.Config;
+using ClientNetworking.Models;
+using ClientNetworking.Models.Config;
+using ClientNetworking;
 using Spectre.Console;
 using System;
 using System.Collections.Generic;

@@ -16,10 +16,10 @@
 * along with this program.  If not, see <http://www.gnu.org/licenses/>.
 **************************************************************************/
 
-using Platform.Sdk;
-using Platform.Sdk.Models.Commerce;
-using Platform.Sdk.Models.Query;
-using Platform.Sdk.Util;
+using ClientNetworking;
+using ClientNetworking.Models.Commerce;
+using ClientNetworking.Models.Query;
+using ClientNetworking.Util;
 using SharedLogicUtils.DataTypes.Quest;
 using SharedLogicUtils.Services.Query.Contexts;
 using SharedLogicUtils.Services.Query.Responses;

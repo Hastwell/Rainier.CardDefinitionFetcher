@@ -16,8 +16,8 @@
 * along with this program.  If not, see <http://www.gnu.org/licenses/>.
 **************************************************************************/
 
-using Platform.Sdk;
-using Platform.Sdk.Models.Account;
+using ClientNetworking;
+using ClientNetworking.Models.Account;
 using Omukade.Tools.RainierCardDefinitionFetcher;
 using Spectre.Console;
 using static TPCI.PTCS.PTCSUtils;
@@ -25,7 +25,7 @@ using Omukade.Tools.RainierCardDefinitionFetcher.Model;
 using Newtonsoft.Json;
 using Omukade.AutoPAR;
 using Omukade.AutoPAR.Rainier;
-using Platform.Sdk.Models.Config;
+using ClientNetworking.Models.Config;
 
 internal class Program
 {
